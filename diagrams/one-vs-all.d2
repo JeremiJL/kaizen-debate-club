@@ -1,0 +1,99 @@
+vars: {
+  d2-config: {
+    layout-engine: dagre
+    theme-id: 200
+    dark-theme-id: 200
+  }
+}
+
+direction: down
+style.fill: "#0b0c0f"
+style.stroke: "#2b2f38"
+
+openings: {
+  label: "Opening statements"
+  direction: right
+  style.fill: "#b82222"
+  style.stroke: "#f3f5f7"
+  style.font-color: "#f9f9fb"
+
+  speaker_a: "Speaker A\n2m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+
+  speaker_b: "Speaker B\n2m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+
+  speaker_c: "Speaker C\n2m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+
+  speaker_d: "Speaker D\n2m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+}
+
+clash: "Clash\n15m" {
+  shape: rectangle
+  style.fill: "#090b0f"
+  style.stroke: "#f3f5f7"
+  style.font-color: "#f3f5f7"
+}
+
+qa: "Q&A\n6m" {
+  shape: rectangle
+  style.fill: "#090b0f"
+  style.stroke: "#f3f5f7"
+  style.font-color: "#f3f5f7"
+}
+
+closing: {
+  label: "Closing statements"
+  direction: right
+  style.fill: "#b82222"
+  style.stroke: "#f3f5f7"
+  style.font-color: "#f9f9fb"
+
+  speaker_a: "Speaker A\n1m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+
+  speaker_b: "Speaker B\n1m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+
+  speaker_c: "Speaker C\n1m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+
+  speaker_d: "Speaker D\n1m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+}
+
+openings.speaker_a -> openings.speaker_b
+openings.speaker_c -> openings.speaker_b
+openings.speaker_c -> openings.speaker_d
+closing.speaker_a -> closing.speaker_b
+closing.speaker_c -> closing.speaker_b
+closing.speaker_c -> closing.speaker_d
+openings -> clash
+clash -> qa
+qa -> closing.speaker_a

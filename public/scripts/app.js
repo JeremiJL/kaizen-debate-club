@@ -1,6 +1,8 @@
 const ROUTES = [
   { id: "home", label: "Home" },
   { id: "rules", label: "Rules" },
+  { id: "gallery", label: "Gallery" },
+  { id: "presentation", label: "Presentation" },
   { id: "joinus", label: "Join Us" },
   { id: "aboutus", label: "About us" }
 ];
@@ -15,7 +17,8 @@ const RULE_TABS = [
   { id: "box_of_presents", label: "Box of Presents" },
   { id: "you_vs_world", label: "You VS The World" },
   { id: "mildly_frustrated", label: "12 Mildly-Frustrated Men" },
-  { id: "holivar", label: "Holivar Debate" }
+  { id: "holivar", label: "Holivar Debate" },
+  { id: "public_execution", label: "Public Execution" }
 ];
 
 const RULE_GROUPS = {
@@ -28,8 +31,48 @@ const RULE_GROUPS = {
   box_of_presents: "warmup",
   you_vs_world: "warmup",
   mildly_frustrated: "warmup",
-  holivar: "warmup"
+  holivar: "warmup",
+  public_execution: "warmup"
 };
+
+const PRESENTATION_CONFIGS = [
+  {
+    id: "blank",
+    label: "Blank",
+    motion: "",
+    definition: "",
+    tickets: []
+  },
+  {
+    id: "workshop-06-05-2026",
+    label: "07-05-2026",
+    motion: "This house believes...",
+    definition: "",
+    tickets: [
+      "This House Believes that in the IT industry, getting rich is often a product of immoral actions.",
+      "THB that the recent internet shutdown in Russia will have positive consequences for the future of Europe.",
+      "PTOETHW join a trade union for programmers to fight against the excessive use of AI in the workplace."
+    ]
+  },
+  {
+    id: "brainstormed-motions",
+    label: "Brainstormed Motions",
+    motion: "",
+    definition: "",
+    tickets: [
+      "This House Would recognize religion as a mitigating factor in criminal sentencing.",
+      "This House Prefers a world without marijuana.",
+      "This House Believes that the COVID-19 pandemic resulted in a net increase in global pandemic preparedness.",
+      "This House Believes that elections should be conducted via open voting.",
+      "This House Believes that the COVID-19 pandemic was manufactured by big tech corporations."
+    ]
+  }
+];
+
+const DEFAULT_PRESENTATION_CONFIG = PRESENTATION_CONFIGS[0];
+const PRESENTATION_TABS = ["stopwatch", "voting"];
+const GALLERY_DRIVE_FOLDER_ID = "1na5zIMLsU2Toy0sHW7K_JIN2EfjvT4sb";
+const GALLERY_EMBED_URL = `https://drive.google.com/embeddedfolderview?id=${GALLERY_DRIVE_FOLDER_ID}#grid`;
 
 const MEMBERS = [
   {
@@ -297,6 +340,45 @@ const RULE_CONTENT = {
         ]
       }
     ]
+  },
+  public_execution: {
+    title: "Public Execution",
+    strapline: "Live audience pressure, visible momentum shifts, and king-of-the-hill survival.",
+    intro:
+      "A competitive warm-up built around immediate persuasion under pressure. One speaker defends their position against a stream of challengers while the audience continuously signals who is winning.",
+    sections: [
+      {
+        heading: "Opening round",
+        bullets: [
+          "Two volunteers sign up for a three-minute debate.",
+          "The motion is presented to both speakers.",
+          "After the debate ends, the audience votes to choose the winner.",
+          "The winner becomes the first Defender of the game."
+        ]
+      },
+      {
+        heading: "Challenge rounds",
+        bullets: [
+          "A new volunteer from the audience steps up as the Contestant.",
+          "The Contestant must take the side opposite to the current Defender.",
+          "At the start of each round, the audience is assumed to be on the Defender's side until persuaded otherwise.",
+          "Whenever an audience member feels more convinced by the Contestant, they raise their hand.",
+          "Audience members may raise or lower their hand at any time during the three minutes if they change their mind.",
+          "If more than half of the audience has their hands raised at any point, the debate is interrupted immediately.",
+          "In that case, the Contestant wins instantly, becomes the new Defender, and the next round begins with a search for a new Contestant."
+        ]
+      },
+      {
+        heading: "Voting and conduct",
+        bullets: [
+          "After each round, the audience members other than the current Defender may vote on whether to change the motion.",
+          "If audience members believe a speaker committed a logical fallacy or behaved rudely, they may point it out aloud during the game.",
+          "They may also try to persuade the rest of the audience to vote against the offending speaker."
+        ]
+      }
+    ],
+    note:
+      "The ultimate winner is the person who survives the greatest total number of rounds as Defender."
   }
 };
 
@@ -304,13 +386,127 @@ const state = {
   route: getRouteFromHash(),
   activeRule: "etiquette",
   carouselIndex: 0,
-  mobileMenuOpen: false
+  mobileMenuOpen: false,
+  presentationTab: "stopwatch",
+  presentationSelectedConfig: DEFAULT_PRESENTATION_CONFIG.id,
+  presentationPresetSeconds: 180,
+  presentationCustomMinutes: "3",
+  presentationRemainingMs: 180000,
+  presentationTimerRunning: false,
+  presentationTimerEndsAt: null,
+  presentationMotion: DEFAULT_PRESENTATION_CONFIG.motion,
+  presentationDefinition: DEFAULT_PRESENTATION_CONFIG.definition,
+  presentationTickets: [...DEFAULT_PRESENTATION_CONFIG.tickets],
+  presentationTicketDraft: ""
 };
+
+let presentationTimerInterval = null;
 
 function getRouteFromHash() {
   const hash = window.location.hash || "#/home";
   const route = hash.replace(/^#\//, "").trim();
   return ROUTES.some((item) => item.id === route) ? route : "home";
+}
+
+function formatPresentationTime(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function getPresentationRemainingMs() {
+  if (!state.presentationTimerRunning || !state.presentationTimerEndsAt) {
+    return Math.max(0, state.presentationRemainingMs);
+  }
+  return Math.max(0, state.presentationTimerEndsAt - Date.now());
+}
+
+function syncPresentationTimerState() {
+  if (!state.presentationTimerRunning) return;
+  const remaining = getPresentationRemainingMs();
+  state.presentationRemainingMs = remaining;
+  if (remaining <= 0) {
+    state.presentationTimerRunning = false;
+    state.presentationTimerEndsAt = null;
+  }
+}
+
+function setPresentationDuration(seconds) {
+  const normalizedSeconds = Math.max(1, Math.floor(seconds) || 180);
+  state.presentationPresetSeconds = normalizedSeconds;
+  state.presentationCustomMinutes = String(Number((normalizedSeconds / 60).toFixed(2)));
+  state.presentationRemainingMs = normalizedSeconds * 1000;
+  state.presentationTimerRunning = false;
+  state.presentationTimerEndsAt = null;
+  stopPresentationTimerInterval();
+}
+
+function applyPresentationConfig(configId) {
+  const config = PRESENTATION_CONFIGS.find((item) => item.id === configId);
+  if (!config) return;
+  state.presentationSelectedConfig = config.id;
+  state.presentationMotion = config.motion;
+  state.presentationDefinition = config.definition;
+  state.presentationTickets = [...config.tickets];
+  state.presentationTicketDraft = "";
+}
+
+function setPresentationTab(nextTab) {
+  if (!PRESENTATION_TABS.includes(nextTab) || state.presentationTab === nextTab) return;
+  state.presentationTab = nextTab;
+  renderApp();
+}
+
+function isEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+}
+
+function stopPresentationTimerInterval() {
+  if (presentationTimerInterval) {
+    window.clearInterval(presentationTimerInterval);
+    presentationTimerInterval = null;
+  }
+}
+
+function updatePresentationTimerUi() {
+  syncPresentationTimerState();
+  const display = document.querySelector("[data-presentation-time]");
+  const ring = document.querySelector("[data-presentation-progress]");
+  const status = document.querySelector("[data-presentation-status]");
+  if (!display || !ring || !status) return;
+
+  const remaining = getPresentationRemainingMs();
+  const total = Math.max(1000, state.presentationPresetSeconds * 1000);
+  const ratio = Math.max(0, Math.min(1, remaining / total));
+
+  display.textContent = formatPresentationTime(remaining);
+  ring.style.setProperty("--presentation-progress", `${ratio}`);
+  display.classList.toggle("is-finished", remaining <= 0);
+  status.textContent = remaining <= 0 ? "Time is up" : state.presentationTimerRunning ? "Running" : "Ready";
+
+  if (!state.presentationTimerRunning) {
+    stopPresentationTimerInterval();
+  }
+}
+
+function ensurePresentationTimerInterval() {
+  stopPresentationTimerInterval();
+  if (!state.presentationTimerRunning) return;
+  presentationTimerInterval = window.setInterval(updatePresentationTimerUi, 200);
+}
+
+function isFullscreenActive() {
+  return Boolean(document.fullscreenElement);
+}
+
+async function toggleFullscreenMode() {
+  if (isFullscreenActive()) {
+    await document.exitFullscreen();
+    return;
+  }
+  await document.documentElement.requestFullscreen();
 }
 
 function escapeHtml(value) {
@@ -397,108 +593,30 @@ function renderRulePanels(rule) {
 }
 
 function renderRuleVisual(ruleId) {
-  if (ruleId === "hot_potato") {
-    return `
-      <section class="rules-visual rules-visual--poster">
-        <div class="rules-visual__copy">
-          <p class="rules-visual__eyebrow">KDC Warm-Up</p>
-          <h3>Hot-potato debate rules</h3>
-          <ul class="rules-visual__steps">
-            <li>The motion is displayed on the screen.</li>
-            <li>A “hot potato” is handed to a volunteer, who chooses a side.</li>
-            <li>The participant has one minute to present their arguments.</li>
-            <li>The potato is then passed to the next participant.</li>
-            <li>The new speaker either takes the opposite side or draws a new motion.</li>
-          </ul>
-        </div>
-        <div class="rules-visual__figure" aria-hidden="true">
-          <div class="potato-figure">
-            <div class="potato-figure__head"></div>
-            <div class="potato-figure__body"></div>
-            <div class="potato-figure__paper"></div>
-            <div class="potato-figure__potato"></div>
-          </div>
-        </div>
-      </section>
-    `;
-  }
-
   if (ruleId === "impromptu") {
     return `
-      <section class="rules-visual rules-visual--flow">
-        <div class="flow-chart flow-chart--team flow-chart--team-wide">
-          <div class="flow-chart__arena">
-            <p class="flow-chart__side flow-chart__side--left">Affirmative</p>
-            <p class="flow-chart__side flow-chart__side--right">Opposition</p>
-            <div class="flow-chart__divider"></div>
-
-            <div class="flow-node flow-node--dark flow-node--a1"><strong>Opening</strong><span>speech</span><em>3 min</em></div>
-            <div class="flow-node flow-node--dark flow-node--b1"><strong>Opening</strong><span>speech</span><em>3 min</em></div>
-
-            <div class="flow-node flow-node--brand flow-node--a2"><strong>Arguments</strong><span>speech</span><em>3 min</em></div>
-            <div class="flow-node flow-node--brand flow-node--b2"><strong>Arguments</strong><span>speech</span><em>3 min</em></div>
-
-            <div class="flow-node flow-node--brand flow-node--a3"><strong>Arguments</strong><span>speech</span><em>3 min</em></div>
-            <div class="flow-node flow-node--brand flow-node--b3"><strong>Arguments</strong><span>speech</span><em>3 min</em></div>
-
-            <div class="flow-bar flow-bar--brand flow-bar--qa">Q&amp;A<em>6 min</em></div>
-
-            <div class="flow-node flow-node--dark flow-node--a4"><strong>Closing</strong><span>speech</span><em>3 min</em></div>
-            <div class="flow-node flow-node--dark flow-node--b4"><strong>Closing</strong><span>speech</span><em>3 min</em></div>
-
-            <div class="flow-edge flow-edge--team-1"></div>
-            <div class="flow-edge flow-edge--team-2"></div>
-            <div class="flow-edge flow-edge--team-3"></div>
-            <div class="flow-edge flow-edge--team-4"></div>
-            <div class="flow-edge flow-edge--team-5"></div>
-            <div class="flow-edge flow-edge--team-6"></div>
-            <div class="flow-edge flow-edge--team-7"></div>
-          </div>
-        </div>
+      <section class="rules-visual rules-visual--diagram">
+        <figure class="diagram-embed">
+          <figcaption class="diagram-embed__title">Kaizen Team Debate flow</figcaption>
+          <img class="diagram-embed__image" src="images/diagrams/kaizen-team-debate.svg" alt="Kaizen Team Debate flowchart">
+        </figure>
       </section>
     `;
   }
 
   if (ruleId === "one_vs_all") {
     return `
-      <section class="rules-visual rules-visual--flow">
-        <div class="flow-chart flow-chart--solo">
-          <div class="flow-chart__arena">
-            <p class="flow-chart__side flow-chart__side--left">Affirmative</p>
-            <p class="flow-chart__side flow-chart__side--right">Opposition</p>
-
-            <div class="flow-block flow-block--brand flow-block--openings">
-              <span class="flow-block__label">Opening statements</span>
-              <div class="flow-speaker flow-speaker--s1"><strong>Speaker A</strong><em>2 min</em></div>
-              <div class="flow-speaker flow-speaker--s2"><strong>Speaker B</strong><em>2 min</em></div>
-              <div class="flow-speaker flow-speaker--s3"><strong>Speaker C</strong><em>2 min</em></div>
-              <div class="flow-speaker flow-speaker--s4"><strong>Speaker D</strong><em>2 min</em></div>
-              <div class="flow-edge flow-edge--solo-1"></div>
-              <div class="flow-edge flow-edge--solo-2"></div>
-              <div class="flow-edge flow-edge--solo-3"></div>
-            </div>
-
-            <div class="flow-bar flow-bar--dark flow-bar--clash">Arguments Clash<em>15 min</em></div>
-            <div class="flow-arrow flow-arrow--down-1"></div>
-            <div class="flow-bar flow-bar--dark flow-bar--qa2">Q&amp;A<em>6 min</em></div>
-            <div class="flow-arrow flow-arrow--down-2"></div>
-            <div class="flow-bar flow-bar--brand flow-bar--closing">Closing statements<em>1 min per member</em></div>
-          </div>
-
-          <div class="flow-chart__title">
-            <span>Timings</span>
-            <span>of</span>
-            <strong>1 VS ALL</strong>
-            <span>Debate</span>
-          </div>
-        </div>
+      <section class="rules-visual rules-visual--diagram">
+        <figure class="diagram-embed">
+          <figcaption class="diagram-embed__title">1 VS ALL flow</figcaption>
+          <img class="diagram-embed__image" src="images/diagrams/one-vs-all.svg" alt="1 VS ALL flowchart">
+        </figure>
       </section>
     `;
   }
 
   return "";
 }
-
 function memberCard(member) {
   return `
     <article class="card">
@@ -554,28 +672,30 @@ function renderHome() {
     .join("");
 
   return `
-    <section class="hero hero--video">
-      <video class="homeBackGroundVideo" autoplay muted loop playsinline preload="auto">
-        <source src="videos/loop.mp4" type="video/mp4">
-      </video>
-      <div class="hero__overlay"></div>
-      <div class="hero__content">
-        <figure class="text-center">
-          <blockquote class="blockquote">
-            <h1>Kaizen Debate Club</h1>
-          </blockquote>
-          <figcaption class="blockquote-footer">Japanese for "Continuous Improvement"</figcaption>
-        </figure>
-      </div>
+    <section class="home-page">
+      <section class="hero hero--video">
+        <video class="homeBackGroundVideo" autoplay muted loop playsinline preload="auto">
+          <source src="videos/loop.mp4" type="video/mp4">
+        </video>
+        <div class="hero__overlay"></div>
+        <div class="hero__content">
+          <figure class="text-center">
+            <blockquote class="blockquote">
+              <h1>Kaizen Debate Club</h1>
+            </blockquote>
+            <figcaption class="blockquote-footer">Japanese for "Continuous Improvement"</figcaption>
+          </figure>
+        </div>
+      </section>
+      ${textBlock({
+        h2Content: "What do we do?",
+        pContent: "As the name of the club suggests, during our meetings, we debate! Of course, that is not all. You can also expect our organisers to conduct lectures on specific aspects of debating. Occasionally, we host guests from the world of professional debate, as well as lecturers from our Academy who are eager to share a few wise words. On festive occasions, we organise special edition meetings full of competition, prizes, and unexpected forms of debating. We can also proudly say that Kaizen Debate Club represents our Academy beyond its walls — at cross-university competitions! Join us to find out more!" 
+      })}
+      ${textBlock({
+        h2Content: "Why should you join?",
+        content: rows
+      })}
     </section>
-    ${textBlock({
-      h2Content: "What do we do?",
-      pContent: "As the name of the club suggests, during our meetings, we debate! Of course, that is not all. You can also expect our organisers to conduct lectures on specific aspects of debating. Occasionally, we host guests from the world of professional debate, as well as lecturers from our Academy who are eager to share a few wise words. On festive occasions, we organise special edition meetings full of competition, prizes, and unexpected forms of debating. We can also proudly say that Kaizen Debate Club represents our Academy beyond its walls — at cross-university competitions! Join us to find out more!" 
-    })}
-    ${textBlock({
-      h2Content: "Why should you join?",
-      content: rows
-    })}
   `;
 }
 
@@ -638,7 +758,7 @@ function renderRules() {
 
 function renderJoinUs() {
   return `
-    <section>
+    <section class="join-page">
       <h1>Join Us!</h1>
       ${textBlock({
         h2Content: "Participate as a guest and became a member!",
@@ -712,6 +832,196 @@ function renderAboutUs() {
         <p>
           We’re always looking to expand our team. If you believe that your skills can be beneficial to our club, feel free to contact us about it. We’re currently in need of promoters and proofreaders, but we’re open for suggestions as well!
         </p>
+        <section class="feedback-callout">
+          <div class="feedback-callout__copy">
+            <p class="feedback-callout__eyebrow">Feedback</p>
+            <p class="feedback-callout__message">We would trully appreaciate you leaving your feedback under the form below!</p>
+          </div>
+          <figure class="feedback-callout__qr">
+            <img src="images/qr/unnamed.jpg" alt="QR code linking to the feedback form">
+          </figure>
+        </section>
+      </div>
+    </section>
+  `;
+}
+
+function renderGallery() {
+  return `
+    <section class="gallery-page">
+      <h1>Gallery</h1>
+      <div class="gallery-shell">
+        <div class="gallery-intro">
+          <p class="gallery-intro__eyebrow">Club Photos</p>
+          <h2>Moments from Kaizen Debate Club</h2>
+        </div>
+        <div class="gallery-embed">
+          <iframe
+            src="${GALLERY_EMBED_URL}"
+            title="Kaizen Debate Club photo gallery"
+            loading="lazy"
+            referrerpolicy="no-referrer"
+          ></iframe>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderPresentation() {
+  const remaining = getPresentationRemainingMs();
+  const presetItems = PRESENTATION_CONFIGS.map((config) => `
+    <button
+      type="button"
+      class="presentation-config ${state.presentationSelectedConfig === config.id ? "is-active" : ""}"
+      data-presentation-config="${config.id}"
+    >
+      <span class="presentation-config__label">${escapeHtml(config.label)}</span>
+      <span class="presentation-config__meta">${config.tickets.length} tickets</span>
+    </button>
+  `).join("");
+  const ticketCards = state.presentationTickets.length
+    ? state.presentationTickets
+        .map(
+          (ticket, index) => `
+            <article class="presentation-ticket">
+              <div class="presentation-ticket__index">${index + 1}</div>
+              <div class="presentation-ticket__body">
+                <p class="presentation-ticket__label">Motion</p>
+                <p class="presentation-ticket__text">${escapeHtml(ticket)}</p>
+              </div>
+              <button type="button" class="presentation-ticket__remove" data-ticket-remove="${index}" aria-label="Remove motion ${index + 1}">
+                Remove
+              </button>
+            </article>
+          `
+        )
+        .join("")
+    : `
+      <div class="presentation-empty">
+        <p>No voting tickets yet. Add motions during the meeting and they will appear here for the vote.</p>
+      </div>
+    `;
+  const configListContent = presetItems || `<div class="presentation-empty"><p>No meeting configs available.</p></div>`;
+
+  return `
+    <section class="presentation-page">
+      <h1>Presentation</h1>
+      <div class="presentation-layout">
+        <aside class="presentation-configs">
+          <p class="presentation-configs__eyebrow">Meeting configs</p>
+          <div class="presentation-configs__list">
+            ${configListContent}
+          </div>
+        </aside>
+
+        <div class="presentation-shell">
+          <div class="presentation-tabs-row">
+          <nav class="presentation-tabs" aria-label="Presentation tools">
+            <button type="button" class="presentation-tab ${state.presentationTab === "stopwatch" ? "is-active" : ""}" data-presentation-tab="stopwatch">
+              Stopwatch
+            </button>
+            <button type="button" class="presentation-tab ${state.presentationTab === "voting" ? "is-active" : ""}" data-presentation-tab="voting">
+              Voting
+            </button>
+          </nav>
+          <p class="presentation-shortcuts">Shortcuts: <kbd>1</kbd> Stopwatch, <kbd>2</kbd> Voting, <kbd>&larr;</kbd>/<kbd>&rarr;</kbd> switch tabs</p>
+          </div>
+
+          ${
+            state.presentationTab === "stopwatch"
+              ? `
+                <section class="presentation-panel">
+                <div class="presentation-timer-block">
+                  <div class="presentation-timer-face">
+                    <p class="presentation-timer-status" data-presentation-status>${state.presentationTimerRunning ? "Running" : "Ready"}</p>
+                    <p class="presentation-timer-value" data-presentation-time>${formatPresentationTime(remaining)}</p>
+                    <div class="presentation-progress-line" aria-hidden="true">
+                      <span class="presentation-progress-line__fill" data-presentation-progress style="--presentation-progress: ${Math.max(0, Math.min(1, remaining / Math.max(1000, state.presentationPresetSeconds * 1000)))};"></span>
+                    </div>
+                  </div>
+                  <div class="presentation-presets">
+                    ${[60, 120, 180].map((seconds) => `
+                      <button
+                        type="button"
+                        class="presentation-preset ${state.presentationPresetSeconds === seconds ? "is-active" : ""}"
+                        data-presentation-preset="${seconds}"
+                      >
+                        ${Math.floor(seconds / 60)} min
+                      </button>
+                    `).join("")}
+                    <form class="presentation-custom-time" data-presentation-custom-time>
+                      <label class="presentation-custom-time__field">
+                        <span class="presentation-custom-time__label">Custom</span>
+                        <input
+                          type="number"
+                          min="0.25"
+                          step="0.25"
+                          inputmode="decimal"
+                          class="presentation-custom-time__input"
+                          data-presentation-custom-minutes
+                          value="${escapeHtml(state.presentationCustomMinutes)}"
+                        >
+                        <span class="presentation-custom-time__unit">min</span>
+                      </label>
+                      <button type="submit" class="presentation-preset presentation-preset--custom">Apply</button>
+                    </form>
+                  </div>
+
+                  <div class="presentation-controls">
+                    <button type="button" class="btn" data-presentation-action="start">
+                      ${state.presentationTimerRunning ? "Resume" : "Start"}
+                    </button>
+                    <button type="button" class="btn" data-presentation-action="pause">Pause</button>
+                    <button type="button" class="btn" data-presentation-action="reset">Reset</button>
+                  </div>
+                </div>
+
+                <div class="presentation-copy">
+                  <label class="presentation-field">
+                    <span class="presentation-field__label">Motion</span>
+                    <textarea class="presentation-field__input presentation-field__input--motion" data-presentation-motion rows="3">${escapeHtml(state.presentationMotion)}</textarea>
+                  </label>
+                  <label class="presentation-field">
+                    <span class="presentation-field__label">Definition</span>
+                    <textarea class="presentation-field__input presentation-field__input--definition" data-presentation-definition rows="5">${escapeHtml(state.presentationDefinition)}</textarea>
+                  </label>
+                </div>
+                </section>
+              `
+              : `
+                <section class="presentation-panel presentation-panel--voting">
+                <div class="presentation-voting-head">
+                  <div>
+                    <p class="presentation-voting-head__eyebrow">Meeting motions</p>
+                    <h2>Voting tickets</h2>
+                  </div>
+                  <p class="presentation-voting-head__count">${state.presentationTickets.length} / 5 tickets</p>
+                </div>
+
+                <form class="presentation-ticket-form" data-ticket-form>
+                  <textarea
+                    class="presentation-ticket-form__input"
+                    data-ticket-input
+                    rows="3"
+                    placeholder="Add a motion to the voting board"
+                  >${escapeHtml(state.presentationTicketDraft)}</textarea>
+                  <button
+                    type="submit"
+                    class="btn"
+                    ${state.presentationTickets.length >= 5 ? "disabled" : ""}
+                  >
+                    Add ticket
+                  </button>
+                </form>
+
+                <div class="presentation-ticket-grid">
+                  ${ticketCards}
+                </div>
+                </section>
+              `
+          }
+        </div>
       </div>
     </section>
   `;
@@ -719,6 +1029,8 @@ function renderAboutUs() {
 
 function renderMainContent() {
   if (state.route === "rules") return renderRules();
+  if (state.route === "gallery") return renderGallery();
+  if (state.route === "presentation") return renderPresentation();
   if (state.route === "joinus") return renderJoinUs();
   if (state.route === "aboutus") return renderAboutUs();
   return renderHome();
@@ -727,6 +1039,8 @@ function renderMainContent() {
 function renderApp() {
   const app = document.getElementById("app");
   if (!app) return;
+  const fullscreenLabel = isFullscreenActive() ? "Exit Fullscreen" : "Fullscreen";
+  const mainClass = state.route === "presentation" ? "site-main site-main--presentation" : "site-main";
 
   const navLinks = ROUTES.map((route) => {
     const activeClass = route.id === state.route ? "is-current" : "";
@@ -736,10 +1050,13 @@ function renderApp() {
   app.innerHTML = `
     <header>
       <nav class="site-nav site-nav--desktop" aria-label="Primary">
-        <div class="navbar justify-content-center navbar-expand-sm">
+        <div class="navbar navbar-expand-sm site-nav__desktop-row">
           <ul class="navbar-nav">
             ${navLinks}
           </ul>
+          <button type="button" class="site-fullscreen-btn" data-fullscreen-toggle>
+            ${fullscreenLabel}
+          </button>
         </div>
       </nav>
 
@@ -747,17 +1064,22 @@ function renderApp() {
         <div class="container-fluid">
           <div class="site-nav__mobile-bar">
             <a class="site-nav__brand" href="#/home">Kaizen Debate Club</a>
-            <button
-              class="site-toggler"
-              type="button"
-              aria-expanded="${state.mobileMenuOpen ? "true" : "false"}"
-              aria-controls="site-mobile-menu"
-              data-mobile-toggle
-            >
-              <span class="site-toggler__line"></span>
-              <span class="site-toggler__line"></span>
-              <span class="site-toggler__line"></span>
-            </button>
+            <div class="site-nav__mobile-actions">
+              <button type="button" class="site-fullscreen-btn site-fullscreen-btn--mobile" data-fullscreen-toggle>
+                ${fullscreenLabel}
+              </button>
+              <button
+                class="site-toggler"
+                type="button"
+                aria-expanded="${state.mobileMenuOpen ? "true" : "false"}"
+                aria-controls="site-mobile-menu"
+                data-mobile-toggle
+              >
+                <span class="site-toggler__line"></span>
+                <span class="site-toggler__line"></span>
+                <span class="site-toggler__line"></span>
+              </button>
+            </div>
           </div>
           <div id="site-mobile-menu" class="site-mobile-menu ${state.mobileMenuOpen ? "is-open" : ""}">
             <ul class="navbar-nav ms-auto">
@@ -768,7 +1090,7 @@ function renderApp() {
       </nav>
     </header>
 
-    <main class="site-main">
+    <main class="${mainClass}">
       ${renderMainContent()}
     </main>
 
@@ -825,6 +1147,17 @@ function bindEvents(app) {
     });
   });
 
+  app.querySelectorAll("[data-fullscreen-toggle]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        await toggleFullscreenMode();
+        renderApp();
+      } catch {
+        // Ignore rejected fullscreen requests from the browser.
+      }
+    });
+  });
+
   app.querySelectorAll("[data-rule-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeRule = button.getAttribute("data-rule-tab");
@@ -851,20 +1184,174 @@ function bindEvents(app) {
       renderApp();
     });
   });
+
+  app.querySelectorAll("[data-presentation-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setPresentationTab(button.getAttribute("data-presentation-tab") || "stopwatch");
+    });
+  });
+
+  app.querySelectorAll("[data-presentation-config]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const configId = button.getAttribute("data-presentation-config");
+      applyPresentationConfig(configId);
+      renderApp();
+    });
+  });
+
+  app.querySelectorAll("[data-presentation-preset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const seconds = Number(button.getAttribute("data-presentation-preset")) || 180;
+      setPresentationDuration(seconds);
+      renderApp();
+    });
+  });
+
+  const customMinutesInput = app.querySelector("[data-presentation-custom-minutes]");
+  if (customMinutesInput) {
+    customMinutesInput.addEventListener("input", (event) => {
+      state.presentationCustomMinutes = event.target.value;
+    });
+  }
+
+  const customTimeForm = app.querySelector("[data-presentation-custom-time]");
+  if (customTimeForm) {
+    customTimeForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const nextMinutes = Number(state.presentationCustomMinutes);
+      if (!Number.isFinite(nextMinutes) || nextMinutes <= 0) return;
+      setPresentationDuration(nextMinutes * 60);
+      renderApp();
+    });
+  }
+
+  app.querySelectorAll("[data-presentation-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.getAttribute("data-presentation-action");
+      if (action === "start") {
+        const remaining = getPresentationRemainingMs();
+        state.presentationRemainingMs = remaining;
+        state.presentationTimerEndsAt = Date.now() + remaining;
+        state.presentationTimerRunning = true;
+        ensurePresentationTimerInterval();
+        updatePresentationTimerUi();
+        renderApp();
+      }
+      if (action === "pause") {
+        state.presentationRemainingMs = getPresentationRemainingMs();
+        state.presentationTimerRunning = false;
+        state.presentationTimerEndsAt = null;
+        stopPresentationTimerInterval();
+        renderApp();
+      }
+      if (action === "reset") {
+        state.presentationRemainingMs = state.presentationPresetSeconds * 1000;
+        state.presentationTimerRunning = false;
+        state.presentationTimerEndsAt = null;
+        stopPresentationTimerInterval();
+        renderApp();
+      }
+    });
+  });
+
+  const motionInput = app.querySelector("[data-presentation-motion]");
+  if (motionInput) {
+    motionInput.addEventListener("input", (event) => {
+      state.presentationMotion = event.target.value;
+    });
+  }
+
+  const definitionInput = app.querySelector("[data-presentation-definition]");
+  if (definitionInput) {
+    definitionInput.addEventListener("input", (event) => {
+      state.presentationDefinition = event.target.value;
+    });
+  }
+
+  const ticketInput = app.querySelector("[data-ticket-input]");
+  if (ticketInput) {
+    ticketInput.addEventListener("input", (event) => {
+      state.presentationTicketDraft = event.target.value;
+    });
+  }
+
+  const ticketForm = app.querySelector("[data-ticket-form]");
+  if (ticketForm) {
+    ticketForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const nextTicket = state.presentationTicketDraft.trim();
+      if (!nextTicket || state.presentationTickets.length >= 5) return;
+      state.presentationTickets = [...state.presentationTickets, nextTicket];
+      state.presentationTicketDraft = "";
+      renderApp();
+    });
+  }
+
+  app.querySelectorAll("[data-ticket-remove]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = Number(button.getAttribute("data-ticket-remove"));
+      state.presentationTickets = state.presentationTickets.filter((_, itemIndex) => itemIndex !== index);
+      renderApp();
+    });
+  });
+
+  if (state.route === "presentation" && state.presentationTab === "stopwatch") {
+    updatePresentationTimerUi();
+    ensurePresentationTimerInterval();
+  } else {
+    stopPresentationTimerInterval();
+  }
 }
 
 window.addEventListener("hashchange", () => {
   state.route = getRouteFromHash();
   state.mobileMenuOpen = false;
+  if (state.route !== "presentation") {
+    stopPresentationTimerInterval();
+  }
   renderApp();
 });
 
 window.addEventListener("DOMContentLoaded", () => {
   if (!window.location.hash) {
     window.location.hash = "/home";
-    return;
   }
 
   state.route = getRouteFromHash();
   renderApp();
+});
+
+document.addEventListener("fullscreenchange", () => {
+  renderApp();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (state.route !== "presentation" || isEditableTarget(event.target)) return;
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+
+  if (event.key === "1") {
+    event.preventDefault();
+    setPresentationTab("stopwatch");
+    return;
+  }
+
+  if (event.key === "2") {
+    event.preventDefault();
+    setPresentationTab("voting");
+    return;
+  }
+
+  const currentIndex = PRESENTATION_TABS.indexOf(state.presentationTab);
+  if (currentIndex === -1) return;
+
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    setPresentationTab(PRESENTATION_TABS[(currentIndex + 1) % PRESENTATION_TABS.length]);
+    return;
+  }
+
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    setPresentationTab(PRESENTATION_TABS[(currentIndex - 1 + PRESENTATION_TABS.length) % PRESENTATION_TABS.length]);
+  }
 });
