@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "start": "python3 -m http.server 3000 -d public",
-    "build": "mkdir -p build && cp -R public/. build/"
+    "build": "mkdir -p build && cp -R public/. build/",
+    "sync-gallery": "python3 scripts/sync_gallery.py"
   }
 }

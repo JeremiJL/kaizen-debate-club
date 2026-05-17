@@ -81,7 +81,8 @@ const PRESENTATION_CONFIGS = [
 const DEFAULT_PRESENTATION_CONFIG = PRESENTATION_CONFIGS[0];
 const PRESENTATION_TABS = ["stopwatch", "voting"];
 const GALLERY_DRIVE_FOLDER_ID = "1na5zIMLsU2Toy0sHW7K_JIN2EfjvT4sb";
-const GALLERY_EMBED_URL = `https://drive.google.com/embeddedfolderview?id=${GALLERY_DRIVE_FOLDER_ID}#grid`;
+const GALLERY_FOLDER_URL = `https://drive.google.com/drive/folders/${GALLERY_DRIVE_FOLDER_ID}`;
+const GALLERY_MEETINGS = Array.isArray(window.GALLERY_MEETINGS) ? window.GALLERY_MEETINGS : [];
 
 const MEMBERS = [
   {
@@ -1017,6 +1018,57 @@ function renderAboutUs() {
 }
 
 function renderGallery() {
+  const meetingsMarkup = GALLERY_MEETINGS.length
+    ? GALLERY_MEETINGS.map((meeting, index) => {
+        const photosMarkup = meeting.photos.length
+          ? meeting.photos
+              .map(
+                (photo) => `
+                  <a
+                    class="gallery-photo-card"
+                    href="${escapeHtml(photo.href)}"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <img
+                      src="${escapeHtml(photo.thumbnail)}"
+                      alt="${escapeHtml(`${meeting.title} - ${photo.title}`)}"
+                      loading="lazy"
+                      decoding="async"
+                      referrerpolicy="no-referrer"
+                    >
+                    <span class="gallery-photo-card__caption">${escapeHtml(photo.title)}</span>
+                  </a>
+                `
+              )
+              .join("")
+          : '<p class="gallery-empty">No public photos were found in this meeting folder.</p>';
+
+        return `
+          <section class="gallery-meeting">
+            ${index > 0 ? '<hr class="gallery-meeting__rule">' : ""}
+            <div class="gallery-meeting__header">
+              <div>
+                <h3>${escapeHtml(meeting.title)}</h3>
+                <p>${meeting.photos.length} photos</p>
+              </div>
+              <a class="gallery-meeting__link" href="${escapeHtml(meeting.folderUrl)}" target="_blank" rel="noreferrer">
+                Open folder
+              </a>
+            </div>
+            <div class="gallery-photo-grid">
+              ${photosMarkup}
+            </div>
+          </section>
+        `;
+      }).join("")
+    : `
+      <div class="gallery-empty">
+        <p>The gallery snapshot is not available right now.</p>
+        <p><a class="gallery-meeting__link" href="${GALLERY_FOLDER_URL}" target="_blank" rel="noreferrer">Open the Google Drive gallery</a></p>
+      </div>
+    `;
+
   return `
     <section class="gallery-page">
       <h1>Gallery</h1>
@@ -1024,14 +1076,10 @@ function renderGallery() {
         <div class="gallery-intro">
           <p class="gallery-intro__eyebrow">Club Photos</p>
           <h2>Moments from Kaizen Debate Club</h2>
+          <p class="gallery-intro__copy">Photos are grouped by meeting folder below. Click any photo to open it in Google Drive.</p>
         </div>
-        <div class="gallery-embed">
-          <iframe
-            src="${GALLERY_EMBED_URL}"
-            title="Kaizen Debate Club photo gallery"
-            loading="lazy"
-            referrerpolicy="no-referrer"
-          ></iframe>
+        <div class="gallery-groups">
+          ${meetingsMarkup}
         </div>
       </div>
     </section>
