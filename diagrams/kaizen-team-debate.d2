@@ -1,0 +1,89 @@
+vars: {
+  d2-config: {
+    layout-engine: dagre
+    theme-id: 200
+    dark-theme-id: 200
+  }
+}
+
+direction: down
+style.fill: "#0b0c0f"
+style.stroke: "#2b2f38"
+
+affirmative: {
+  label: "Affirmative"
+  direction: down
+  style.fill: "#0f1217"
+  style.stroke: "#3b404b"
+
+  aff_open: "Opening\n3m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+
+  aff_arg1: "Arguments\n3m" {
+    style.fill: "#b82222"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f9f9fb"
+  }
+
+  aff_arg2: "Arguments\n3m" {
+    style.fill: "#b82222"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f9f9fb"
+  }
+
+  aff_close: "Closing\n3m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+}
+
+opposition: {
+  label: "Opposition"
+  direction: down
+  style.fill: "#0f1217"
+  style.stroke: "#3b404b"
+
+  opp_open: "Opening\n3m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+
+  opp_arg1: "Arguments\n3m" {
+    style.fill: "#b82222"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f9f9fb"
+  }
+
+  opp_arg2: "Arguments\n3m" {
+    style.fill: "#b82222"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f9f9fb"
+  }
+
+  opp_close: "Closing\n3m" {
+    style.fill: "#090b0f"
+    style.stroke: "#f3f5f7"
+    style.font-color: "#f3f5f7"
+  }
+}
+
+qa: "Q&A\n6m" {
+  shape: rectangle
+  style.fill: "#b82222"
+  style.stroke: "#f3f5f7"
+  style.font-color: "#f9f9fb"
+}
+
+affirmative.aff_open -> opposition.opp_open
+opposition.opp_open -> affirmative.aff_arg1
+affirmative.aff_arg1 -> opposition.opp_arg1
+opposition.opp_arg1 -> affirmative.aff_arg2
+affirmative.aff_arg2 -> opposition.opp_arg2
+opposition.opp_arg2 -> qa
+qa -> affirmative.aff_close
+affirmative.aff_close -> opposition.opp_close
