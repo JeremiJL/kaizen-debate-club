@@ -1,6 +1,7 @@
 const ROUTES = [
   { id: "home", label: "Home" },
   { id: "rules", label: "Rules" },
+  { id: "calendar", label: "Calendar" },
   { id: "gallery", label: "Gallery" },
   { id: "presentation", label: "Presentation" },
   { id: "joinus", label: "Join Us" },
@@ -80,6 +81,7 @@ const PRESENTATION_CONFIGS = [
 
 const DEFAULT_PRESENTATION_CONFIG = PRESENTATION_CONFIGS[0];
 const PRESENTATION_TABS = ["stopwatch", "voting"];
+const CALENDAR_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const GALLERY_DRIVE_FOLDER_ID = "1na5zIMLsU2Toy0sHW7K_JIN2EfjvT4sb";
 const GALLERY_FOLDER_URL = `https://drive.google.com/drive/folders/${GALLERY_DRIVE_FOLDER_ID}`;
 const GALLERY_MEETINGS = Array.isArray(window.GALLERY_MEETINGS) ? window.GALLERY_MEETINGS : [];
@@ -96,21 +98,35 @@ const MEMBERS = [
     image: "images/portraits/jeremi.jpg",
     fullName: "Jeremi Lipniacki",
     email: "jeremi.lipniacki@pjwstk.edu.pl",
-    role: "Co-founder / Organiser",
+    role: "Co-founder / Organiser / Board Member",
     group: "current"
   },
   {
     image: "images/portraits/kemal.jpg",
     fullName: "Kemal Ozcan",
     email: "kemal.ozcan@pjwstk.edu.pl",
-    role: "President / Organiser / Photographer",
+    role: "President / Organiser / Photographer / Board Member",
     group: "current"
   },
   {
     image: "images/portraits/alex.jpg",
     fullName: "Aleksandra Moltchanova",
     email: "aleksandra.moltchanova@pjwstk.edu.pl",
-    role: "Organiser / Designer",
+    role: "Organiser / Designer / Board Member",
+    group: "current"
+  },
+  {
+    image: "images/portraits/walter.jpg",
+    fullName: "Volodymyr Kiselyk",
+    email: "volodymyr.kiselyk@pjwstk.edu.pl",
+    role: "Chief of Propaganda / Host",
+    group: "current"
+  },
+  {
+    image: "images/portraits/arseni.jpg",
+    fullName: "Arseni Mahulenka",
+    email: "arseni.mahulenka@pjwstk.edu.pl",
+    role: "Organiser",
     group: "current"
   },
   {
@@ -132,6 +148,13 @@ const MEMBERS = [
     fullName: "Ivan Abchuhskyi",
     email: "ivan.abchuhskyi@pjwstk.edu.pl",
     role: "Organiser",
+    group: "former"
+  },
+  {
+    image: "images/portraits/vic.jpg",
+    fullName: "Viktoriia Chulkova",
+    email: "viktoriia.chulkova@pjwstk.edu.pl",
+    role: "Board Member / Designer",
     group: "former"
   }
 ];
@@ -496,6 +519,10 @@ const RULE_CONTENT = {
 
 const state = {
   route: getRouteFromHash(),
+  calendarMonthDate: (() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  })(),
   activeRule: "etiquette",
   carouselIndex: 0,
   mobileMenuOpen: false,
@@ -520,6 +547,132 @@ function getRouteFromHash() {
   const hash = window.location.hash || "#/home";
   const route = hash.replace(/^#\//, "").trim();
   return ROUTES.some((item) => item.id === route) ? route : "home";
+}
+
+function getNextThursdayReference(baseDate = new Date()) {
+  const reference = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+  const offset = (4 - reference.getDay() + 7) % 7 || 7;
+  reference.setDate(reference.getDate() + offset);
+  return reference;
+}
+
+function getThursdayMeetingVariant(date, referenceDate = getNextThursdayReference()) {
+  const weekDiff = Math.round((date - referenceDate) / (7 * 24 * 60 * 60 * 1000));
+  return Math.abs(weekDiff) % 2 === 0 ? "workshop" : "debate";
+}
+
+function getCalendarMeetingType(date) {
+  const day = date.getDay();
+  if (day === 2) return "advanced";
+  if (day === 4) return getThursdayMeetingVariant(date);
+  return "";
+}
+
+function shiftCalendarMonth(step) {
+  const current = state.calendarMonthDate;
+  state.calendarMonthDate = new Date(current.getFullYear(), current.getMonth() + step, 1);
+}
+
+function getCalendarGrid(monthDate) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const leadingBlanks = (firstDay.getDay() + 6) % 7;
+  const cells = [];
+
+  for (let index = 0; index < leadingBlanks; index += 1) {
+    cells.push(null);
+  }
+
+  for (let day = 1; day <= lastDay.getDate(); day += 1) {
+    cells.push(new Date(year, month, day));
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  return cells;
+}
+
+function renderCalendar() {
+  const monthDate = state.calendarMonthDate;
+  const monthLabel = monthDate.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const referenceThursday = getNextThursdayReference();
+  const dayCells = getCalendarGrid(monthDate)
+    .map((date) => {
+      if (!date) {
+        return '<div class="calendar-grid__cell calendar-grid__cell--empty" aria-hidden="true"></div>';
+      }
+
+      const meetingType = getCalendarMeetingType(date);
+      const typeClass = meetingType ? ` calendar-grid__cell--${meetingType}` : "";
+
+      return `
+        <div class="calendar-grid__cell${typeClass}">
+          <span class="calendar-grid__day">${date.getDate()}</span>
+          ${meetingType ? '<span class="calendar-grid__badge" aria-hidden="true"></span>' : ""}
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <section class="calendar-page">
+      <h1>Calendar</h1>
+      <div class="calendar-layout">
+        <aside class="calendar-copy">
+          <p class="calendar-copy__eyebrow">Meeting Types</p>
+          <h2>Weekly schedule overview</h2>
+          <p><span class="calendar-inline calendar-inline--neutral">Regular Group Meetings</span></p>
+          <p>Regular group meetings are open to everyone interested in debating - no sign-up required.</p>
+          <p>
+            Our <span class="calendar-inline calendar-inline--neutral">Regular Group Meetings</span>, which take place on <span class="calendar-inline calendar-inline--neutral">Thursdays</span>, alternate between two formats:
+            <span class="calendar-inline calendar-inline--workshop">workshops</span> and
+            <span class="calendar-inline calendar-inline--debate">debate meetings</span>.
+            During <span class="calendar-inline calendar-inline--workshop">workshops</span>, we experiment with new debating formats,
+            introduce specific debating skills, give short lectures, and try out special activities.
+            During <span class="calendar-inline calendar-inline--debate">debate meetings</span>, we focus entirely on debating,
+            using one of the formats we have practised before.
+          </p>
+          <p>Every <span class="calendar-inline calendar-inline--neutral">Regular Group Meeting</span>  starts at 6:00 PM and lasts around two hours, including a short break. Meetings take place in room C/1 at the Polish-Japanese Academy.</p>
+          <hr>
+          <p><span class="calendar-inline calendar-inline--advanced">Advanced Group Meetings</span></p>
+          <p>On <span class="calendar-inline calendar-inline--advanced">Tuesdays</span>, we hold <span class="calendar-inline calendar-inline--advanced">Advanced Group Meetings</span> for experienced members of the club and our representatives at cross-university tournaments.</p>
+          <p>These meetings are exclusive, and the room in which they take place is a secret.</p>
+          <div class="calendar-legend">
+            <div class="calendar-legend__item">
+              <span class="calendar-legend__swatch calendar-legend__swatch--advanced"></span>
+              <span>Tuesday advanced group meetings</span>
+            </div>
+            <div class="calendar-legend__item">
+              <span class="calendar-legend__swatch calendar-legend__swatch--workshop"></span>
+              <span>Thursday workshop meetings</span>
+            </div>
+            <div class="calendar-legend__item">
+              <span class="calendar-legend__swatch calendar-legend__swatch--debate"></span>
+              <span>Thursday debate meetings</span>
+            </div>
+          </div>
+        </aside>
+
+        <section class="calendar-widget" aria-label="Meeting calendar">
+          <div class="calendar-widget__head">
+            <button type="button" class="btn" data-calendar-shift="-1">Previous</button>
+            <h2>${monthLabel}</h2>
+            <button type="button" class="btn" data-calendar-shift="1">Next</button>
+          </div>
+          <div class="calendar-weekdays">
+            ${CALENDAR_WEEKDAY_LABELS.map((label) => `<span>${label}</span>`).join("")}
+          </div>
+          <div class="calendar-grid">
+            ${dayCells}
+          </div>
+        </section>
+      </div>
+    </section>
+  `;
 }
 
 function formatPresentationTime(ms) {
@@ -561,6 +714,23 @@ function setPresentationDuration(seconds) {
   stopPresentationTimerInterval();
 }
 
+function applyPresentationPenalty(seconds) {
+  const penaltyMs = Math.max(0, Math.floor(seconds * 1000));
+  const remaining = Math.max(0, getPresentationRemainingMs() - penaltyMs);
+  state.presentationRemainingMs = remaining;
+  state.presentationTimerEndsAt = state.presentationTimerRunning ? Date.now() + remaining : null;
+
+  if (remaining <= 0) {
+    state.presentationTimerRunning = false;
+    state.presentationTimerEndsAt = null;
+    if (!state.presentationAlarmPlayed) {
+      state.presentationAlarmPlayed = true;
+      playPresentationBuzzer();
+    }
+    stopPresentationTimerInterval();
+  }
+}
+
 function applyPresentationConfig(configId) {
   const config = PRESENTATION_CONFIGS.find((item) => item.id === configId);
   if (!config) return;
@@ -590,14 +760,17 @@ function playPresentationBuzzer() {
   const now = presentationAudioContext.currentTime;
   const masterGain = presentationAudioContext.createGain();
   masterGain.gain.setValueAtTime(0.0001, now);
-  masterGain.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
-  masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
+  masterGain.gain.exponentialRampToValueAtTime(0.24, now + 0.02);
+  masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.6);
   masterGain.connect(presentationAudioContext.destination);
 
   [
-    { frequency: 880, start: 0, duration: 0.28 },
-    { frequency: 740, start: 0.34, duration: 0.28 },
-    { frequency: 660, start: 0.68, duration: 0.36 }
+    { frequency: 880, start: 0, duration: 0.3 },
+    { frequency: 740, start: 0.38, duration: 0.3 },
+    { frequency: 660, start: 0.76, duration: 0.34 },
+    { frequency: 880, start: 1.28, duration: 0.32 },
+    { frequency: 740, start: 1.68, duration: 0.32 },
+    { frequency: 620, start: 2.08, duration: 0.4 }
   ].forEach((tone) => {
     const oscillator = presentationAudioContext.createOscillator();
     oscillator.type = "square";
@@ -631,7 +804,8 @@ function updatePresentationTimerUi() {
   const display = document.querySelector("[data-presentation-time]");
   const ring = document.querySelector("[data-presentation-progress]");
   const status = document.querySelector("[data-presentation-status]");
-  if (!display || !ring || !status) return;
+  const face = document.querySelector("[data-presentation-face]");
+  if (!display || !ring || !status || !face) return;
 
   const remaining = getPresentationRemainingMs();
   const total = Math.max(1000, state.presentationPresetSeconds * 1000);
@@ -640,10 +814,43 @@ function updatePresentationTimerUi() {
   display.textContent = formatPresentationTime(remaining);
   ring.style.setProperty("--presentation-progress", `${ratio}`);
   display.classList.toggle("is-finished", remaining <= 0);
+  face.classList.toggle("is-alarming", remaining <= 0);
   status.textContent = remaining <= 0 ? "Time is up" : state.presentationTimerRunning ? "Running" : "Ready";
 
   if (!state.presentationTimerRunning) {
     stopPresentationTimerInterval();
+  }
+}
+
+function fitPresentationMotionInput(textarea) {
+  if (!(textarea instanceof HTMLTextAreaElement)) return;
+
+  const maxFontSize = 52;
+  const minFontSize = 18;
+  let nextFontSize = maxFontSize;
+
+  textarea.style.fontSize = `${maxFontSize}px`;
+  textarea.style.overflowY = "hidden";
+
+  while (nextFontSize > minFontSize && textarea.scrollHeight > textarea.clientHeight) {
+    nextFontSize -= 1;
+    textarea.style.fontSize = `${nextFontSize}px`;
+  }
+}
+
+function fitPresentationDefinitionInput(textarea) {
+  if (!(textarea instanceof HTMLTextAreaElement)) return;
+
+  const maxFontSize = 24;
+  const minFontSize = 14;
+  let nextFontSize = maxFontSize;
+
+  textarea.style.fontSize = `${maxFontSize}px`;
+  textarea.style.overflowY = "hidden";
+
+  while (nextFontSize > minFontSize && textarea.scrollHeight > textarea.clientHeight) {
+    nextFontSize -= 1;
+    textarea.style.fontSize = `${nextFontSize}px`;
   }
 }
 
@@ -775,10 +982,6 @@ function renderRuleVisual(ruleId) {
     return `
       <section class="rules-visual rules-visual--diagram">
         <figure class="diagram-embed">
-          <figcaption class="diagram-embed__title">Tournament Policy Debate round flow</figcaption>
-          <img class="diagram-embed__image diagram-embed__image--large" src="images/diagrams/tournament-policy-debate.svg" alt="Tournament Policy Debate round flowchart">
-        </figure>
-        <figure class="diagram-embed">
           <figcaption class="diagram-embed__title">Tournament elimination bracket</figcaption>
           <img class="diagram-embed__image diagram-embed__image--large" src="images/diagrams/tournament-policy-bracket.svg" alt="Tournament Policy Debate elimination bracket">
         </figure>
@@ -830,14 +1033,10 @@ function renderHome() {
   ]
     .map(
       (row) => `
-        <div class="row container-flex py-2 mb-1">
-          <div class="title-column col-sm-3">
-            <p>${escapeHtml(row.left)}</p>
-          </div>
-          <div class="col-sm">
-            <p>${escapeHtml(row.right)}</p>
-          </div>
-        </div>
+        <article class="home-feature-card">
+          <p class="home-feature-card__title">${escapeHtml(row.left)}</p>
+          <p class="home-feature-card__copy">${escapeHtml(row.right)}</p>
+        </article>
       `
     )
     .join("");
@@ -860,11 +1059,21 @@ function renderHome() {
       </section>
       ${textBlock({
         h2Content: "What do we do?",
-        pContent: "As the name of the club suggests, during our meetings, we debate! Of course, that is not all. You can also expect our organisers to conduct lectures on specific aspects of debating. Occasionally, we host guests from the world of professional debate, as well as lecturers from our Academy who are eager to share a few wise words. On festive occasions, we organise special edition meetings full of competition, prizes, and unexpected forms of debating. We can also proudly say that Kaizen Debate Club represents our Academy beyond its walls — at cross-university competitions! Join us to find out more!" 
+        content: `
+          <p class="home-section__eyebrow">Club Focus</p>
+          <p class="home-section__copy">As the name of the club suggests, during our meetings, we debate. That is only part of the picture. Our organisers also run lectures on specific debating skills, we occasionally host guests from the world of professional debate, and we invite lecturers from the Academy to share their perspective. On festive occasions, we organise special-edition meetings full of competition, prizes, and unusual formats. Kaizen Debate Club also represents the Academy beyond its walls at cross-university competitions.</p>
+        `,
+        showDivider: false
       })}
       ${textBlock({
         h2Content: "Why should you join?",
-        content: rows
+        content: `
+          <p class="home-section__eyebrow">What You Gain</p>
+          <div class="home-feature-grid">
+            ${rows}
+          </div>
+        `,
+        showDivider: false
       })}
     </section>
   `;
@@ -955,10 +1164,10 @@ function renderJoinUs() {
 
 function renderAboutUs() {
   const currentMembers = MEMBERS.filter((member) => member.group === "current")
-    .map((member) => `<div class="col-sm">${memberCard(member)}</div>`)
+    .map((member) => `<div class="staff-grid__item">${memberCard(member)}</div>`)
     .join("");
   const formerMembers = MEMBERS.filter((member) => member.group === "former")
-    .map((member) => `<div class="col-sm">${memberCard(member)}</div>`)
+    .map((member) => `<div class="staff-grid__item">${memberCard(member)}</div>`)
     .join("");
 
   const activeMember = MEMBERS[state.carouselIndex];
@@ -973,14 +1182,13 @@ function renderAboutUs() {
 
       <section class="staff-desktop">
         <p class="staff-section-label">Current Staff</p>
-        <div class="row row-cols-4 mt-3 py-2">
+        <div class="staff-grid staff-grid--current">
           ${currentMembers}
         </div>
 
         <p class="staff-section-label">Former Staff</p>
-        <div class="row row-cols-4 py-2">
+        <div class="staff-grid staff-grid--former">
           ${formerMembers}
-          <div class="col-sm"></div>
         </div>
       </section>
 
@@ -1019,7 +1227,7 @@ function renderAboutUs() {
 
 function renderGallery() {
   const meetingsMarkup = GALLERY_MEETINGS.length
-    ? GALLERY_MEETINGS.map((meeting, index) => {
+    ? [...GALLERY_MEETINGS].reverse().map((meeting, index) => {
         const photosMarkup = meeting.photos.length
           ? meeting.photos
               .map(
@@ -1076,7 +1284,7 @@ function renderGallery() {
         <div class="gallery-intro">
           <p class="gallery-intro__eyebrow">Club Photos</p>
           <h2>Moments from Kaizen Debate Club</h2>
-          <p class="gallery-intro__copy">Photos are grouped by meeting folder below. Click any photo to open it in Google Drive.</p>
+          <p class="gallery-intro__copy">Browse photos from every meeting in the life of Kaizen Debate Club</p>
         </div>
         <div class="gallery-groups">
           ${meetingsMarkup}
@@ -1151,7 +1359,7 @@ function renderPresentation() {
               ? `
                 <section class="presentation-panel">
                 <div class="presentation-timer-block">
-                  <div class="presentation-timer-face">
+                  <div class="presentation-timer-face" data-presentation-face>
                     <p class="presentation-timer-status" data-presentation-status>${state.presentationTimerRunning ? "Running" : "Ready"}</p>
                     <p class="presentation-timer-value" data-presentation-time>${formatPresentationTime(remaining)}</p>
                     <div class="presentation-progress-line" aria-hidden="true">
@@ -1190,6 +1398,7 @@ function renderPresentation() {
                     <button type="button" class="btn" data-presentation-action="start">
                       ${state.presentationTimerRunning ? "Resume" : "Start"}
                     </button>
+                    <button type="button" class="btn" data-presentation-action="punish">Punish -15s</button>
                     <button type="button" class="btn" data-presentation-action="pause">Pause</button>
                     <button type="button" class="btn" data-presentation-action="reset">Reset</button>
                   </div>
@@ -1247,6 +1456,7 @@ function renderPresentation() {
 
 function renderMainContent() {
   if (state.route === "rules") return renderRules();
+  if (state.route === "calendar") return renderCalendar();
   if (state.route === "gallery") return renderGallery();
   if (state.route === "presentation") return renderPresentation();
   if (state.route === "joinus") return renderJoinUs();
@@ -1365,6 +1575,14 @@ function bindEvents(app) {
     });
   });
 
+  app.querySelectorAll("[data-calendar-shift]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const step = Number(button.getAttribute("data-calendar-shift")) || 0;
+      shiftCalendarMonth(step);
+      renderApp();
+    });
+  });
+
   app.querySelectorAll("[data-fullscreen-toggle]").forEach((button) => {
     button.addEventListener("click", async () => {
       try {
@@ -1466,6 +1684,12 @@ function bindEvents(app) {
         stopPresentationTimerInterval();
         renderApp();
       }
+      if (action === "punish") {
+        void ensurePresentationAudioReady();
+        applyPresentationPenalty(15);
+        updatePresentationTimerUi();
+        renderApp();
+      }
       if (action === "reset") {
         state.presentationRemainingMs = state.presentationPresetSeconds * 1000;
         state.presentationTimerRunning = false;
@@ -1479,15 +1703,19 @@ function bindEvents(app) {
 
   const motionInput = app.querySelector("[data-presentation-motion]");
   if (motionInput) {
+    fitPresentationMotionInput(motionInput);
     motionInput.addEventListener("input", (event) => {
       state.presentationMotion = event.target.value;
+      fitPresentationMotionInput(event.target);
     });
   }
 
   const definitionInput = app.querySelector("[data-presentation-definition]");
   if (definitionInput) {
+    fitPresentationDefinitionInput(definitionInput);
     definitionInput.addEventListener("input", (event) => {
       state.presentationDefinition = event.target.value;
+      fitPresentationDefinitionInput(event.target);
     });
   }
 
