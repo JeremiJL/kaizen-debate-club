@@ -1456,6 +1456,10 @@ figure.text-center{ margin: 0 0 34px 0; }
     box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 
+.diagram-embed__image--large{
+    width: min(100%, 1040px);
+}
+
 .rules-visual{
     padding: clamp(20px, 2.6vw, 30px);
     border-radius: var(--radius);

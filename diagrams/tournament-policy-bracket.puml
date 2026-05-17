@@ -1,0 +1,47 @@
+@startuml
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam dpi 160
+skinparam defaultFontName Montserrat
+skinparam ArrowColor #F3F5F7
+skinparam ArrowThickness 2
+skinparam rectangle {
+  BackgroundColor #0F1217
+  BorderColor #3B404B
+  FontColor #F3F5F7
+  RoundCorner 24
+}
+
+title Tournament Policy Debate Elimination Bracket
+left to right direction
+
+rectangle "Legislative Team A" as team_a
+rectangle "Legislative Team B" as team_b
+rectangle "Semifinal 1" as semi1
+rectangle "Winning\nLegislative Team" as winner1
+rectangle "Eliminated\nLegislative Team" as elim1
+
+rectangle "Legislative Team C" as team_c
+rectangle "Legislative Team D" as team_d
+rectangle "Semifinal 2" as semi2
+rectangle "Winning\nLegislative Team" as winner2
+rectangle "Eliminated\nLegislative Team" as elim2
+
+rectangle "Final" as final_round
+rectangle "Final Winning\nLegislative Team" as champion
+
+team_a --> semi1
+team_b --> semi1
+semi1 --> winner1
+semi1 --> elim1
+
+team_c --> semi2
+team_d --> semi2
+semi2 --> winner2
+semi2 --> elim2
+
+winner1 --> final_round
+winner2 --> final_round
+final_round --> champion
+
+@enduml

@@ -1,0 +1,63 @@
+@startuml
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam dpi 160
+skinparam defaultFontName Montserrat
+skinparam ArrowColor #F3F5F7
+skinparam ArrowThickness 2
+skinparam rectangle {
+  BackgroundColor #0F1217
+  BorderColor #3B404B
+  FontColor #F3F5F7
+  RoundCorner 24
+}
+
+title Tournament Policy Debate Round Flow
+top to bottom direction
+
+rectangle "Share policy motion" as motion
+rectangle "Define the motion together" as definition
+rectangle "Form 4 legislative teams\nand 1 executive committee" as teams
+rectangle "Choose executive committee leader" as president
+rectangle "15-20 min preparation\nTeams build policies\nCommittee sets evaluation criteria" as prep
+
+rectangle "Semifinal 1\nLegislative Team A vs Legislative Team B" as semi1
+rectangle "Opening speeches\n~5 min each" as open1
+rectangle "Executive validation\n~5 min per policy" as validate1
+rectangle "Arguments clash\n~15 min" as clash1
+rectangle "Questions + committee deliberation\n5-10 min" as qa1
+rectangle "Winning legislative team advances\nLosing legislative team joins committee" as winner1
+
+rectangle "Semifinal 2\nLegislative Team C vs Legislative Team D" as semi2
+rectangle "Opening speeches\n~5 min each" as open2
+rectangle "Executive validation\n~5 min per policy" as validate2
+rectangle "Arguments clash\n~15 min" as clash2
+rectangle "Questions + committee deliberation\n5-10 min" as qa2
+rectangle "Winning legislative team advances\nLosing legislative team joins committee" as winner2
+
+rectangle "Final round\nWinning legislative team vs winning legislative team" as final_round
+rectangle "2 min summaries only\nPolicy shape cannot change" as summaries
+rectangle "Executive vote\nCommittee leader declares the final winning legislative team" as decision
+
+motion --> definition
+definition --> teams
+teams --> president
+president --> prep
+prep --> semi1
+semi1 --> open1
+open1 --> validate1
+validate1 --> clash1
+clash1 --> qa1
+qa1 --> winner1
+winner1 --> semi2
+semi2 --> open2
+open2 --> validate2
+validate2 --> clash2
+clash2 --> qa2
+qa2 --> winner2
+winner2 --> final_round
+winner1 --> final_round
+final_round --> summaries
+summaries --> decision
+
+@enduml

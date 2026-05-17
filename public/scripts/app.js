@@ -13,6 +13,7 @@ const RULE_TABS = [
   { id: "impromptu", label: "Kaizen Team Debate" },
   { id: "one_vs_all", label: "1 VS ALL" },
   { id: "policy", label: "Kaizen Policy Debate" },
+  { id: "tournament_policy", label: "Tournament Policy Debate" },
   { id: "hot_potato", label: "Hot Potato" },
   { id: "box_of_presents", label: "Box of Presents" },
   { id: "you_vs_world", label: "You VS The World" },
@@ -27,6 +28,7 @@ const RULE_GROUPS = {
   impromptu: "debate",
   one_vs_all: "debate",
   policy: "debate",
+  tournament_policy: "debate",
   hot_potato: "warmup",
   box_of_presents: "warmup",
   you_vs_world: "warmup",
@@ -39,6 +41,13 @@ const PRESENTATION_CONFIGS = [
   {
     id: "blank",
     label: "Blank",
+    motion: "",
+    definition: "",
+    tickets: []
+  },
+  {
+    id: "workshop-14-05-2026",
+    label: "14-05-2026",
     motion: "",
     definition: "",
     tickets: []
@@ -236,8 +245,110 @@ const RULE_CONTENT = {
   },
   policy: {
     title: "Kaizen Policy Debate",
-    strapline: "Listed in the PDF, but not yet described there.",
-    intro: "to be added"
+    strapline: "Two proposition teams compete by offering rival policy solutions to the same problem.",
+    intro:
+      "Unlike a standard value clash over whether something should happen, this format asks both sides to propose concrete mechanisms for solving the issue and prove why their version works better.",
+    sections: [
+      {
+        heading: "What a policy debate is",
+        bullets: [
+          "The motion establishes a problem, and both proposition teams respond with different policy solutions rather than a simple yes-or-no position.",
+          "The first proposition team presents Policy A and explains why it is the best way to solve the problem.",
+          "The second proposition team presents Policy B and argues that its solution is more suitable than Policy A.",
+          "The debate focuses on comparing the quality, feasibility, and consequences of competing policies."
+        ]
+      },
+      {
+        heading: "How to build a proper policy",
+        bullets: [
+          "Actor: specify who is responsible for implementation and enforcement.",
+          "Idea: explain the core mechanism and how the policy is supposed to work.",
+          "Implementation: show how the proposal would be carried out in real life.",
+          "Expected positive outcomes: identify the benefits the policy should create.",
+          "Feasibility: address practical obstacles, costs, and execution challenges.",
+          "Risks and byproducts: acknowledge negative effects or unintended consequences."
+        ]
+      },
+      {
+        heading: "Format and roles",
+        bullets: [
+          "The legislative branch consists of two teams: First Proposition and Second Proposition, each with three members.",
+          "The executive branch is an executive committee made up of several members plus a committee leader.",
+          "A moderator runs the round and manages the transitions between stages."
+        ]
+      },
+      {
+        heading: "Round structure",
+        bullets: [
+          "The motion is shared with the room.",
+          "Teams are formed, sides are assigned, and the executive committee leader is chosen.",
+          "The motion is defined together so everyone works from the same interpretation of the problem.",
+          "Teams receive 10 minutes of preparation time.",
+          "First Proposition delivers a 4-minute policy proposal, followed by policy validation from the executive committee.",
+          "Second Proposition delivers a 4-minute policy proposal, followed by policy validation from the executive committee.",
+          "The debate then moves through four rebuttal speeches, each lasting 4 minutes.",
+          "The executive committee conducts examination and vote for 10 minutes by questioning both teams, deliberating internally, and announcing the chosen policy.",
+          "The round ends with feedback."
+        ]
+      },
+      {
+        heading: "How to refute a policy",
+        bullets: [
+          "Question the chosen actor and whether that body is appropriate for enforcement.",
+          "Challenge whether the idea actually solves the stated problem.",
+          "Dispute whether the promised positive outcomes would really follow.",
+          "Attack the feasibility of implementation.",
+          "Argue that the risks and byproducts outweigh the benefits.",
+          "Directly compare your policy against the opponent's and show that yours performs better on these dimensions."
+        ]
+      }
+    ],
+    note:
+      "The PDF example motion was: “This House Would directly penalize individuals for improper sorting of trash.”"
+  },
+  tournament_policy: {
+    title: "Tournament Policy Debate",
+    strapline: "Four legislative teams compete through semifinals and a final before an executive committee.",
+    intro:
+      "This format centers on building full policy proposals, defending them under scrutiny, and surviving elimination rounds until one policy wins the tournament.",
+    sections: [
+      {
+        heading: "Setup",
+        bullets: [
+          "Form five teams in total: four legislative teams with two members each, plus one executive committee made up of the remaining participants.",
+          "The executive committee chooses one leader who acts as the committee leader during eliminations and the final decision.",
+          "The debate starts with a policy motion shared with the room.",
+          "All participants define the motion together before preparation begins.",
+          "Volunteers divide themselves into teams.",
+          "All teams receive roughly 15 to 20 minutes to prepare a policy addressing the motion, while the executive committee decides how it will evaluate the proposals."
+        ]
+      },
+      {
+        heading: "Semifinal round flow",
+        bullets: [
+          "Two legislative teams enter each semifinal round.",
+          "Each team delivers a roughly five-minute opening speech presenting its policy in full.",
+          "After each opening, the executive committee validates whether the proposal is a workable policy for the motion and may request clarifications or missing elements.",
+          "Validation should take no more than about five minutes per policy.",
+          "Once both policies are locked, the argument clash begins and the teams defend why their policy is superior.",
+          "The clash phase lasts about 15 minutes and the policy shape may no longer change.",
+          "The executive committee then takes 5 to 10 minutes to ask questions, deliberate internally, and eliminate one policy.",
+          "The committee leader announces which team loses the round."
+        ]
+      },
+      {
+        heading: "Final round",
+        bullets: [
+          "The same semifinal cycle is repeated for the other two legislative teams.",
+          "The winners of both semifinals advance to the final.",
+          "In the final, opening speeches are replaced by two-minute summaries of the already established policies.",
+          "Finalists may not change the shape of their policy in the last round.",
+          "The executive committee votes again and the committee leader declares the overall tournament winner."
+        ]
+      }
+    ],
+    note:
+      "Teams eliminated from the legislative bracket may join the executive committee after their round ends."
   },
   hot_potato: {
     title: "Hot Potato Debate",
@@ -394,6 +505,7 @@ const state = {
   presentationRemainingMs: 180000,
   presentationTimerRunning: false,
   presentationTimerEndsAt: null,
+  presentationAlarmPlayed: false,
   presentationMotion: DEFAULT_PRESENTATION_CONFIG.motion,
   presentationDefinition: DEFAULT_PRESENTATION_CONFIG.definition,
   presentationTickets: [...DEFAULT_PRESENTATION_CONFIG.tickets],
@@ -401,6 +513,7 @@ const state = {
 };
 
 let presentationTimerInterval = null;
+let presentationAudioContext = null;
 
 function getRouteFromHash() {
   const hash = window.location.hash || "#/home";
@@ -429,6 +542,10 @@ function syncPresentationTimerState() {
   if (remaining <= 0) {
     state.presentationTimerRunning = false;
     state.presentationTimerEndsAt = null;
+    if (!state.presentationAlarmPlayed) {
+      state.presentationAlarmPlayed = true;
+      playPresentationBuzzer();
+    }
   }
 }
 
@@ -439,6 +556,7 @@ function setPresentationDuration(seconds) {
   state.presentationRemainingMs = normalizedSeconds * 1000;
   state.presentationTimerRunning = false;
   state.presentationTimerEndsAt = null;
+  state.presentationAlarmPlayed = false;
   stopPresentationTimerInterval();
 }
 
@@ -450,6 +568,43 @@ function applyPresentationConfig(configId) {
   state.presentationDefinition = config.definition;
   state.presentationTickets = [...config.tickets];
   state.presentationTicketDraft = "";
+}
+
+async function ensurePresentationAudioReady() {
+  if (typeof window === "undefined") return null;
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) return null;
+  if (!presentationAudioContext) {
+    presentationAudioContext = new AudioContextCtor();
+  }
+  if (presentationAudioContext.state === "suspended") {
+    await presentationAudioContext.resume();
+  }
+  return presentationAudioContext;
+}
+
+function playPresentationBuzzer() {
+  if (!presentationAudioContext || presentationAudioContext.state !== "running") return;
+
+  const now = presentationAudioContext.currentTime;
+  const masterGain = presentationAudioContext.createGain();
+  masterGain.gain.setValueAtTime(0.0001, now);
+  masterGain.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
+  masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
+  masterGain.connect(presentationAudioContext.destination);
+
+  [
+    { frequency: 880, start: 0, duration: 0.28 },
+    { frequency: 740, start: 0.34, duration: 0.28 },
+    { frequency: 660, start: 0.68, duration: 0.36 }
+  ].forEach((tone) => {
+    const oscillator = presentationAudioContext.createOscillator();
+    oscillator.type = "square";
+    oscillator.frequency.setValueAtTime(tone.frequency, now + tone.start);
+    oscillator.connect(masterGain);
+    oscillator.start(now + tone.start);
+    oscillator.stop(now + tone.start + tone.duration);
+  });
 }
 
 function setPresentationTab(nextTab) {
@@ -610,6 +765,21 @@ function renderRuleVisual(ruleId) {
         <figure class="diagram-embed">
           <figcaption class="diagram-embed__title">1 VS ALL flow</figcaption>
           <img class="diagram-embed__image" src="images/diagrams/one-vs-all.svg" alt="1 VS ALL flowchart">
+        </figure>
+      </section>
+    `;
+  }
+
+  if (ruleId === "tournament_policy") {
+    return `
+      <section class="rules-visual rules-visual--diagram">
+        <figure class="diagram-embed">
+          <figcaption class="diagram-embed__title">Tournament Policy Debate round flow</figcaption>
+          <img class="diagram-embed__image diagram-embed__image--large" src="images/diagrams/tournament-policy-debate.svg" alt="Tournament Policy Debate round flowchart">
+        </figure>
+        <figure class="diagram-embed">
+          <figcaption class="diagram-embed__title">Tournament elimination bracket</figcaption>
+          <img class="diagram-embed__image diagram-embed__image--large" src="images/diagrams/tournament-policy-bracket.svg" alt="Tournament Policy Debate elimination bracket">
         </figure>
       </section>
     `;
@@ -1229,10 +1399,14 @@ function bindEvents(app) {
     button.addEventListener("click", () => {
       const action = button.getAttribute("data-presentation-action");
       if (action === "start") {
+        void ensurePresentationAudioReady();
         const remaining = getPresentationRemainingMs();
         state.presentationRemainingMs = remaining;
         state.presentationTimerEndsAt = Date.now() + remaining;
         state.presentationTimerRunning = true;
+        if (remaining > 0) {
+          state.presentationAlarmPlayed = false;
+        }
         ensurePresentationTimerInterval();
         updatePresentationTimerUi();
         renderApp();
@@ -1248,6 +1422,7 @@ function bindEvents(app) {
         state.presentationRemainingMs = state.presentationPresetSeconds * 1000;
         state.presentationTimerRunning = false;
         state.presentationTimerEndsAt = null;
+        state.presentationAlarmPlayed = false;
         stopPresentationTimerInterval();
         renderApp();
       }
